@@ -13,7 +13,7 @@ on: [ push ]
 jobs:
   test:
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - run: make tests
       - uses: step-security/junit-upload-github-action@v2
         with:
@@ -44,7 +44,3 @@ By default, this action installs the exact `datadog-ci` release pinned by the ac
 the `datadog-ci-version` configuration to specify the version or range.
 
 This action passes the workflow `github.token` to the install step by default. That is primarily useful when `datadog-ci-version` uses a floating release selector such as `v5`, because GitHub release resolution can then be authenticated.
-
-## Maintainer release flow
-
-See [RELEASE.md](RELEASE.md) for the local `gh`-based process used to bump `datadog-ci` and release this action.
