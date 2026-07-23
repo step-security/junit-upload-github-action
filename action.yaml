@@ -105,8 +105,17 @@ runs:
         translated_version=$("${GITHUB_ACTION_PATH}/scripts/translate-version.sh" "${{ inputs.datadog-ci-version }}")
         echo "version=${translated_version}" >> "$GITHUB_OUTPUT"
 
+    - name: Warn if datadog-ci version is not pinned
+      shell: bash
+      env:
+        VERSION: ${{ steps.translate-version.outputs.version }}
+      run: |
+        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::warning::datadog-ci-version '$VERSION' is not pinned to an exact release. Pin to a specific tag like 'v5.21.2' to avoid supply chain risk."
+        fi
+
     - name: Install datadog-ci
-      uses: DataDog/install-datadog-ci-github-action@501e9d922bf506902d2ecc2c830b0f4471760396 # v1.0.6
+      uses: step-security/install-datadog-ci-github-action@release
       with:
         version: ${{ steps.translate-version.outputs.version }}
         github-token: ${{ inputs.github-token != '' && inputs.github-token || github.token }}
@@ -115,17 +124,29 @@ runs:
 
     - name: Upload the JUnit files
       shell: bash
-      run: |
-        datadog-ci junit upload \
-          --max-concurrency ${{ inputs.concurrency }} \
-          ${{ inputs.logs == 'true' && '--logs' || '' }} \
-          ${{ inputs.auto-discovery == 'true' && '--auto-discovery' || '' }} \
-          ${{ inputs.ignored-paths != '' && format('--ignored-paths {0}', inputs.ignored-paths) || '' }} \
-          ${{ inputs.service != '' && format('--service {0}', inputs.service) || '' }} \
-          ${{ inputs.extra-args }} \
-          ${{ inputs.files }}
       env:
         DD_API_KEY: ${{ inputs.api_key }}
         DD_SITE: ${{ inputs.site }}
         DD_ENV: ${{ inputs.env }}
         DD_TAGS: ${{ inputs.tags }}
+        INPUT_CONCURRENCY: ${{ inputs.concurrency }}
+        INPUT_LOGS: ${{ inputs.logs }}
+        INPUT_AUTO_DISCOVERY: ${{ inputs.auto-discovery }}
+        INPUT_IGNORED_PATHS: ${{ inputs.ignored-paths }}
+        INPUT_SERVICE: ${{ inputs.service }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+        INPUT_FILES: ${{ inputs.files }}
+      run: |
+        echo "::add-mask::$DD_API_KEY"
+        args=(junit upload --max-concurrency "$INPUT_CONCURRENCY")
+        [[ "$INPUT_LOGS" == 'true' ]] && args+=(--logs)
+        [[ "$INPUT_AUTO_DISCOVERY" == 'true' ]] && args+=(--auto-discovery)
+        [[ -n "$INPUT_IGNORED_PATHS" ]] && args+=(--ignored-paths "$INPUT_IGNORED_PATHS")
+        [[ -n "$INPUT_SERVICE" ]] && args+=(--service "$INPUT_SERVICE")
+        if [[ -n "$INPUT_EXTRA_ARGS" ]]; then
+          read -ra extra_args <<< "$INPUT_EXTRA_ARGS"
+          args+=("${extra_args[@]}")
+        fi
+        read -ra input_files <<< "$INPUT_FILES"
+        args+=("${input_files[@]}")
+        datadog-ci "${args[@]}"
