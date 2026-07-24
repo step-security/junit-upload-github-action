@@ -1,0 +1,28 @@
+name: 'Test Action'
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-should-complain-about-missing-api-key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Upload reports using a glob pattern
+        uses: ./
+        id: test_step
+        with:
+          github-token: ${{ github.token }}
+          logs: "true"
+          files: '**/fixtures/**'
+          service: junit-upload-github-action-tests
+          env: ci
+          tags: "foo:bar,alpha:bravo"
+        continue-on-error: true
+      - name: Check that previous step failed
+        if: steps.test_step.outcome == 'success'
+        run: |
+          echo "The previous step did not fail as expected"
+          exit 1

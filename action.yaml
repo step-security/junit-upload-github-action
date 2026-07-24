@@ -1,0 +1,152 @@
+# Composite action to upload junit test result files to Datadog Test Optimization
+name: "Datadog JUnitXML Upload"
+description: "Upload JUnitXML reports files to Datadog Test Optimization"
+inputs:
+  api_key:
+    required: true
+    description: Datadog API key to use to upload the junit files.
+  site:
+    required: false
+    default: datadoghq.com
+    description: The Datadog site to upload the files to.
+  files:
+    required: true
+    description: JUnit files to upload.
+    default: .
+  auto-discovery:
+    required: true
+    description: Do a recursive search and automatic junit files discovery in the folders provided in `files` input (current folder if omitted).
+    default: 'true'
+  ignored-paths:
+    required: false
+    description: A comma-separated list of paths that are ignored when junit files auto-discovery is done. Glob patterns are supported
+  concurrency:
+    required: true
+    description: Controls the maximum number of concurrent file uploads.
+    default: "20"
+  tags:
+    required: false
+    description: Datadog tags to associate with the uploaded test results.
+  service:
+    required: false
+    description: Service name to use with the uploaded test results.
+  env:
+    required: false
+    description: Datadog env to use for the tests.
+  logs:
+    required: false
+    description: Set to "true" to enable forwarding content from XML reports as logs.
+  datadog-ci-version:
+    required: false
+    description: Version of datadog-ci to install. Defaults to the pinned datadog-ci release shipped with this action version. Use a major version like `v5` to get the latest release within that major version, or a specific tag like `v5.6.0` to pin. Legacy npm semver syntax (^, ~, >=, latest) is still supported but deprecated.
+    default: "v5.21.2"
+  github-token:
+    required: false
+    default: ""
+    description: GitHub token to use for authenticated datadog-ci release resolution. Defaults to the workflow token when omitted.
+  extra-args:
+    default: ""
+    description: Extra args to be passed to the datadog-ci cli.
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Subscription check
+      env:
+        REPO_PRIVATE: ${{ github.event.repository.private }}
+      run: |
+        # validate subscription status
+        UPSTREAM="datadog/junit-upload-github-action"
+        ACTION_REPO="${GITHUB_ACTION_REPOSITORY:-}"
+        DOCS_URL="https://docs.stepsecurity.io/actions/stepsecurity-maintained-actions"
+
+        echo ""
+        echo -e "\033[1;36mStepSecurity Maintained Action\033[0m"
+        echo "Secure drop-in replacement for $UPSTREAM"
+        if [ "$REPO_PRIVATE" = "false" ]; then
+          echo -e "\033[32m✓ Free for public repositories\033[0m"
+        fi
+        echo -e "\033[36mLearn more:\033[0m $DOCS_URL"
+        echo ""
+
+        if [ "$REPO_PRIVATE" != "false" ]; then
+          SERVER_URL="${GITHUB_SERVER_URL:-https://github.com}"
+
+          if [ "$SERVER_URL" != "https://github.com" ]; then
+            BODY=$(printf '{"action":"%s","ghes_server":"%s"}' "$ACTION_REPO" "$SERVER_URL")
+          else
+            BODY=$(printf '{"action":"%s"}' "$ACTION_REPO")
+          fi
+
+          API_URL="https://agent.api.stepsecurity.io/v1/github/$GITHUB_REPOSITORY/actions/maintained-actions-subscription"
+
+          RESPONSE=$(curl --max-time 3 -s -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$BODY" \
+            "$API_URL" -o /dev/null) && CURL_EXIT_CODE=0 || CURL_EXIT_CODE=$?
+
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "Timeout or API not reachable. Continuing to next step."
+          elif [ "$RESPONSE" = "403" ]; then
+            echo -e "::error::\033[1;31mThis action requires a StepSecurity subscription for private repositories.\033[0m"
+            echo -e "::error::\033[31mLearn how to enable a subscription: $DOCS_URL\033[0m"
+            exit 1
+          fi
+        fi
+      shell: bash
+
+    # TODO: Remove this step in the next major version (v3.0.0)
+    #       Users should migrate to GitHub release tag syntax: v5, v5.10.0, etc.
+    - name: Translate version format (backwards compatibility)
+      id: translate-version
+      shell: bash
+      run: |
+        translated_version=$("${GITHUB_ACTION_PATH}/scripts/translate-version.sh" "${{ inputs.datadog-ci-version }}")
+        echo "version=${translated_version}" >> "$GITHUB_OUTPUT"
+
+    - name: Warn if datadog-ci version is not pinned
+      shell: bash
+      env:
+        VERSION: ${{ steps.translate-version.outputs.version }}
+      run: |
+        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::warning::datadog-ci-version '$VERSION' is not pinned to an exact release. Pin to a specific tag like 'v5.21.2' to avoid supply chain risk."
+        fi
+
+    - name: Install datadog-ci
+      uses: step-security/install-datadog-ci-github-action@v1
+      with:
+        version: ${{ steps.translate-version.outputs.version }}
+        github-token: ${{ inputs.github-token != '' && inputs.github-token || github.token }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token != '' && inputs.github-token || github.token }}
+
+    - name: Upload the JUnit files
+      shell: bash
+      env:
+        DD_API_KEY: ${{ inputs.api_key }}
+        DD_SITE: ${{ inputs.site }}
+        DD_ENV: ${{ inputs.env }}
+        DD_TAGS: ${{ inputs.tags }}
+        INPUT_CONCURRENCY: ${{ inputs.concurrency }}
+        INPUT_LOGS: ${{ inputs.logs }}
+        INPUT_AUTO_DISCOVERY: ${{ inputs.auto-discovery }}
+        INPUT_IGNORED_PATHS: ${{ inputs.ignored-paths }}
+        INPUT_SERVICE: ${{ inputs.service }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+        INPUT_FILES: ${{ inputs.files }}
+      run: |
+        echo "::add-mask::$DD_API_KEY"
+        args=(junit upload --max-concurrency "$INPUT_CONCURRENCY")
+        [[ "$INPUT_LOGS" == 'true' ]] && args+=(--logs)
+        [[ "$INPUT_AUTO_DISCOVERY" == 'true' ]] && args+=(--auto-discovery)
+        [[ -n "$INPUT_IGNORED_PATHS" ]] && args+=(--ignored-paths "$INPUT_IGNORED_PATHS")
+        [[ -n "$INPUT_SERVICE" ]] && args+=(--service "$INPUT_SERVICE")
+        if [[ -n "$INPUT_EXTRA_ARGS" ]]; then
+          read -ra extra_args <<< "$INPUT_EXTRA_ARGS"
+          args+=("${extra_args[@]}")
+        fi
+        read -ra input_files <<< "$INPUT_FILES"
+        args+=("${input_files[@]}")
+        datadog-ci "${args[@]}"
