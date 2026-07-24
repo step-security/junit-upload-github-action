@@ -1,6 +1,6 @@
 [![StepSecurity Maintained Action](https://raw.githubusercontent.com/step-security/maintained-actions-assets/main/assets/maintained-action-banner.png)](https://docs.stepsecurity.io/actions/stepsecurity-maintained-actions)
 
-# Datadog JUnitXML Upload Action
+# StepSecurity JUnitXML Upload Action
 
 This action installs a pre-built [datadog-ci](https://github.com/DataDog/datadog-ci) binary and uses it to upload JUnitXML files
 to the [Test Optimization product](https://docs.datadoghq.com/tests/).
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: make tests
-      - uses: step-security/junit-upload-github-action@v2
+      - uses: step-security/junit-upload-github-action@v3
         with:
           api_key: ${{ secrets.DD_API_KEY }}
 ```
