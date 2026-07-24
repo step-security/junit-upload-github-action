@@ -115,7 +115,7 @@ runs:
         fi
 
     - name: Install datadog-ci
-      uses: step-security/install-datadog-ci-github-action@v1
+      uses: step-security/install-datadog-ci-github-action@da22c7e4cb8142aafbdf03aac10d2168ec91b451 #v1.0.6
       with:
         version: ${{ steps.translate-version.outputs.version }}
         github-token: ${{ inputs.github-token != '' && inputs.github-token || github.token }}
