@@ -5,6 +5,12 @@
 This action installs a pre-built [datadog-ci](https://github.com/DataDog/datadog-ci) binary and uses it to upload JUnitXML files
 to the [Test Optimization product](https://docs.datadoghq.com/tests/).
 
+> [!IMPORTANT]
+> v4 requires GitHub Actions Runner 2.327.1 or newer because its installer dependency uses the Node.js 24 action runtime.
+> GitHub-hosted runners are kept up to date, but users of self-hosted runners must upgrade before moving from v3 to v4.
+> Users who cannot upgrade should remain on `@v3`. This does not change the Node.js version used by your project.
+> See [GitHub's Node 20 deprecation notice](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/).
+
 ## Usage
 
 ```yaml
@@ -15,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: make tests
-      - uses: step-security/junit-upload-github-action@v3
+      - uses: step-security/junit-upload-github-action@v4
         with:
           api_key: ${{ secrets.DD_API_KEY }}
 ```
