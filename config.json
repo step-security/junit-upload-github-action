@@ -1,0 +1,12 @@
+{
+  "$comment": "Managed automatically when syncing with upstream. Do not edit by hand.",
+  "schema_version": 1,
+  "onboarding_type": "copied",
+  "action_type": "composite",
+  "upstream": {
+    "repository": "DataDog/junit-upload-github-action",
+    "synced_tag": "v4.1.0",
+    "synced_commit": "cdbf0b0acda1005e45c4a11d445bf3dde78e796f",
+    "archived": false
+  }
+}
