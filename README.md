@@ -29,7 +29,7 @@ v4 updates its installer dependency from `install-datadog-ci-github-action` v1 t
 
 - **GitHub-hosted runners:** No runner changes are needed. Update the action reference from `@v3` to `@v4`.
 - **Self-hosted runners:** Upgrade the runner to version 2.327.1 or newer before updating the action reference. Node.js 24 does not support macOS 13.4 or earlier or ARM32 hosts.
-- **Unable to upgrade:** Continue using `step-security/junit-upload-github-action@v4`.
+- **Unable to upgrade:** Continue using `step-security/junit-upload-github-action@v3`.
 
 ```diff
 - uses: step-security/junit-upload-github-action@v3
