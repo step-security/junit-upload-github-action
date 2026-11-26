@@ -32,7 +32,7 @@ v4 updates its installer dependency from `install-datadog-ci-github-action` v1 t
 - **Unable to upgrade:** Continue using `step-security/junit-upload-github-action@v4`.
 
 ```diff
-- uses: step-security/junit-upload-github-action@v4
+- uses: step-security/junit-upload-github-action@v3
 + uses: step-security/junit-upload-github-action@v4
 ```
 
